@@ -20,6 +20,7 @@ INVERTER_STATUS_TYPES = {
     # "Code_3": ["Code 3", "alarm_code_3", None, None],
     "Status": ["Status", "status", None, None],
     "Waiting_Time": ["Waiting Time to Connect to Grid", "waiting_time", "s", None],
+    "modbus_status": ["Modbus Status", "modbus_status", None, None],
 }
 
 INVERTER_SENSOR_TYPES = {
@@ -50,6 +51,10 @@ INVERTER_SENSOR_TYPES = {
     "DI_DRM0_Status": ["Digital Input DRM0 Status", "di_drm_status", None, None],
     "DI_2_Status": ["Digital Input 2. Status", "di_2_status", None, None],
     "DI_3_Status": ["Digital Input 3. Status", "di_3_status", None, None],
+    "Total_Active_Power": ["Total Active Power", "total_active_power", "W", None],
+    "Total_Active_Energy": ["Total Active Energy", "total_active_energy", "Wh", None, "total_active_power"],
+    "Exported_Power": ["Power Exported", "exported_power", "W", None],
+    "Exported_Energy": ["Energy Exported", "exported_energy", "Wh", None, "exported_power"],
 }
 
 METER_SENSOR_TYPES = {
@@ -69,6 +74,8 @@ PV_FIELD_SENSOR_TYPES = {
     "PV2_Current": ["PV2 Current", "pv2_current", "A", "mdi:current-dc"],
     "PV2_Power": ["PV2 Power", "pv2_power", "W", None],
     "PV2_Energy": ["PV2 Energy", "pv2_energy", "Wh", None, "pv2_power"],
+    "PV_Power": ["PV Power", "pv_power", "W", None],
+    "PV_Energy": ["PV Energy", "pv_energy", "Wh", None, "pv_power"],
 }
 
 BATTERY_SENSOR_TYPES = {
@@ -168,4 +175,9 @@ AP_REDUCTION_REASONS = {
     14: "Nominal AC Current",
     15: "Grid Consumption Protection",
     16: "PV Surplus Injected to the Grid",
+}
+
+MODBUS_STATUS = {
+    "ONLINE": "Online",
+    "OFFLINE": "Offline",
 }

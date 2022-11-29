@@ -1,4 +1,4 @@
-"""The Ingeteam Modbus Integration."""
+"""The Ingeteam Modbus Home Integration."""
 import asyncio
 import logging
 import operator
@@ -32,7 +32,8 @@ from .const import (
     BATTERY_STATUS,
     BATTERY_BMS_ALARMS,
     BATTERY_LIMITATION_REASONS,
-    AP_REDUCTION_REASONS
+    AP_REDUCTION_REASONS,
+    MODBUS_STATUS
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -216,13 +217,27 @@ class IngeteamModbusHub:
 
 
     def read_modbus_data(self):
-        return (
-            self.read_modbus_data_status()
-            and self.read_modbus_data_inverter()
-            and self.read_modbus_data_meter()
-            and self.read_modbus_data_pv_field()
-            and self.read_modbus_data_battery()
-        )
+        try:
+            readResult = (
+                self.read_modbus_data_status()
+                and self.read_modbus_data_inverter()
+                and self.read_modbus_data_meter()
+                and self.read_modbus_data_pv_field()
+                and self.read_modbus_data_battery()
+                and self.parse_totals()
+            );
+
+            if readResult == False:
+                self.data["modbus_status"] = MODBUS_STATUS["offline"];
+                return False
+                
+        except Exception as e:
+            _LOGGER.exception("Error parsing modbus data")
+            self.data["modbus_status"] = MODBUS_STATUS["offline"];
+
+            return False;
+        
+        return True
 
     def read_modbus_data_status(self):
         status_data = self.read_input_registers(unit=self._address, address=9, count=8)
@@ -370,6 +385,7 @@ class IngeteamModbusHub:
         self.data["pv2_voltage"] = pv2_voltage
         self.data["pv2_current"] = pv2_current / 100
         self.data["pv2_power"] = pv2_power
+        self.data["pv_power"] = pv1_power + pv2_power;
 
         return True
 
@@ -421,5 +437,17 @@ class IngeteamModbusHub:
             self.data['battery_charging_current_max'] = 0
             self.data['battery_discharging_current_max'] = 0
             self.data['battery_bms_alarm'] = "None"
+
+        return True
+
+    def parse_totals(self):
+        self.data["total_active_power"] = self.data["pv_power"]
+
+        if (self.data["em_active_power"] > 0):
+            self.data["total_active_power"] += self.data["em_active_power"]
+        else:
+            self.data["exported_power"] = self.data["em_active_power"]
+
+        self.data["modbus_status"] = MODBUS_STATUS["ONLINE"]
 
         return True
