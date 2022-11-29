@@ -228,12 +228,12 @@ class IngeteamModbusHub:
             );
 
             if readResult == False:
-                self.data["modbus_status"] = MODBUS_STATUS["offline"];
+                self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"];
                 return False
                 
         except Exception as e:
             _LOGGER.exception("Error parsing modbus data")
-            self.data["modbus_status"] = MODBUS_STATUS["offline"];
+            self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"];
 
             return False;
         
