@@ -240,36 +240,41 @@ class IngeteamModbusHub:
         return True
 
     def read_modbus_data_status(self):
-        status_data = self.read_input_registers(unit=self._address, address=9, count=8)
-        if status_data.isError():
-            return False
+        try:
+            status_data = self.read_input_registers(unit=self._address, address=9, count=8)
+            if status_data.isError():
+                return False
 
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            status_data.registers, byteorder=Endian.Big
-        )
+            decoder = BinaryPayloadDecoder.fromRegisters(
+                status_data.registers, byteorder=Endian.Big
+            )
 
-        stop_code = decoder.decode_16bit_uint()
-        alarm_code = decoder.decode_32bit_uint()
-        decoder.skip_bytes(6)
-        # alarm_code_1 = decoder.decode_16bit_uint()
-        # alarm_code_2 = decoder.decode_16bit_uint()
-        # alarm_code_3 = decoder.decode_16bit_uint()
-        status = decoder.decode_16bit_uint()
-        waiting_time = decoder.decode_16bit_uint()
+            stop_code = decoder.decode_16bit_uint()
+            alarm_code = decoder.decode_32bit_uint()
+            decoder.skip_bytes(6)
+            # alarm_code_1 = decoder.decode_16bit_uint()
+            # alarm_code_2 = decoder.decode_16bit_uint()
+            # alarm_code_3 = decoder.decode_16bit_uint()
+            status = decoder.decode_16bit_uint()
+            waiting_time = decoder.decode_16bit_uint()
 
-        self.data["stop_code"] = stop_code
-        self.data["alarm_code"] = alarm_code
-        # self.data["alarm_code_1"] = alarm_code_1
-        # self.data["alarm_code_2"] = alarm_code_2
-        # self.data["alarm_code_3"] = alarm_code_3
-        self.data["waiting_time"] = waiting_time
+            self.data["stop_code"] = stop_code
+            self.data["alarm_code"] = alarm_code
+            # self.data["alarm_code_1"] = alarm_code_1
+            # self.data["alarm_code_2"] = alarm_code_2
+            # self.data["alarm_code_3"] = alarm_code_3
+            self.data["waiting_time"] = waiting_time
 
-        if status in INVERTER_STATUS:
-            self.data['status'] = INVERTER_STATUS[status]
-        else:
-            self.data['status'] = status
+            if status in INVERTER_STATUS:
+                self.data['status'] = INVERTER_STATUS[status]
+            else:
+                self.data['status'] = status
 
-        return True
+            return True
+        except Exception as e:
+            _LOGGER.exception("Error read modbus data status")
+        
+        return False
     
     def read_modbus_data_inverter(self):
         status_data = self.read_input_registers(unit=self._address, address=37, count=30)
@@ -445,6 +450,7 @@ class IngeteamModbusHub:
 
         if (self.data["em_active_power"] > 0):
             self.data["total_active_power"] += self.data["em_active_power"]
+            self.data["exported_power"] = 0;
         else:
             self.data["exported_power"] = self.data["em_active_power"]
 
