@@ -164,6 +164,18 @@ class CalculatedEnergySensor(IntegrationSensor):
     @property
     def hub(self):
         return self._hub
+    
+    @property
+    def device_class(self):
+        """Return the class of the sensor."""
+        if self._unit_of_measurement == "W":
+            return "power"
+        elif self._unit_of_measurement == "A":
+            return "current"
+        elif self._unit_of_measurement == "Wh" or  self._unit_of_measurement == "kWh" or self._unit_of_measurement == "MWh":
+            return "energy"
+        elif self._unit_of_measurement == "V":
+            return "voltage"
 
 
 class IngeteamSensor(SensorEntity):
@@ -220,6 +232,18 @@ class IngeteamSensor(SensorEntity):
         """Return the state of the sensor."""
         if self._key in self._hub.data:
             return self._hub.data[self._key]
+
+    @property
+    def device_class(self):
+        """Return the class of the sensor."""
+        if self._unit_of_measurement == "W":
+            return "power"
+        elif self._unit_of_measurement == "A":
+            return "current"
+        elif self._unit_of_measurement == "Wh" or  self._unit_of_measurement == "kWh" or self._unit_of_measurement == "MWh":
+            return "energy"
+        elif self._unit_of_measurement == "V":
+            return "voltage"
 
     @property
     def should_poll(self) -> bool:
