@@ -450,9 +450,11 @@ class IngeteamModbusHub:
 
         if (self.data["em_active_power"] > 0):
             self.data["total_active_power"] += self.data["em_active_power"]
-            self.data["exported_power"] = 0;
+            self.data["exported_power"] = 0
+            self.data["imported_power"] = self.data["em_active_power"]
         else:
             self.data["exported_power"] = self.data["em_active_power"]
+            self.data["imported_power"] = 0
 
         self.data["modbus_status"] = MODBUS_STATUS["ONLINE"]
 

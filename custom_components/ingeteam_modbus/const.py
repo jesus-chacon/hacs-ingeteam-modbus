@@ -55,6 +55,8 @@ INVERTER_SENSOR_TYPES = {
     "Total_Active_Energy": ["Total Active Energy", "total_active_energy", "Wh", None, "total_active_power"],
     "Exported_Power": ["Power Exported", "exported_power", "W", None],
     "Exported_Energy": ["Energy Exported", "exported_energy", "Wh", None, "exported_power"],
+    "Imported_Power": ["Power Imported", "imported_power", "W", None],
+    "Imported_Energy": ["Energy Imported", "imported_energy", "Wh", None, "imported_power"],
 }
 
 METER_SENSOR_TYPES = {
