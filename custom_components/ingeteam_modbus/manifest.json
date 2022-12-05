@@ -5,5 +5,5 @@
   "requirements": ["pymodbus==1.5.2"],
   "codeowners": ["@jesus-chacon"],
   "config_flow": true,
-  "version": "0.0.3"
+  "version": "1.0.0"
 }
