@@ -210,6 +210,7 @@ class IngeteamModbusHub:
                 and self.read_modbus_data_meter()
                 and self.read_modbus_data_pv_field()
                 and self.read_modbus_data_battery()
+                and self.complete_battery()
                 and self.parse_totals()
             );
 
@@ -445,3 +446,14 @@ class IngeteamModbusHub:
         self.data["modbus_status"] = MODBUS_STATUS["ONLINE"]
 
         return True
+
+    def complete_battery(self):
+        if (self.data["battery_power"] >= 0):
+            self.data["battery_charging_power"] = self.data["battery_power"]
+            self.data["battery_discharging_power"] = 0
+        else:
+            self.data["battery_charging_power"] = 0
+            self.data["battery_discharging_power"] = self.data["battery_power"] * -1
+
+        return True
+
