@@ -15,6 +15,8 @@ This custom component is experimental version with featured not (yet) present in
 - Supports reading external meter data
 - Supports reading battery data
 - Create cumulative energy values from de instant measurements with Riemann Sum integration.
+- Added total imported/exported/PV powers as absolute sensors.
+- Added charge and discharge power sensor for battery
 
 ### Configuration
 
