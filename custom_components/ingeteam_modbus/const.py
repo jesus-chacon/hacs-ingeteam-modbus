@@ -89,7 +89,7 @@ BATTERY_SENSOR_TYPES = {
     "Battery_Charging_Energy": ["Battery Charging Energy", "battery_charging_energy", "Wh", "mdi:battery-charging", "battery_charging_power"],
     "Battery_Discharging_Power": ["Battery Discharging Power", "battery_discharging_power", "W", "mdi:battery-charging-40"],
     "Battery_Discharging_Energy": ["Battery Discharging Energy", "battery_discharging_energy", "Wh", "mdi:battery-charging-40", "battery_discharging_power"],
-    "Battery_SOC": ["Battery State of Charge", "battery_state_of_charge", "B", "mdi:battery-high"],
+    "Battery_SOC": ["Battery State of Charge", "battery_state_of_charge", "%", "mdi:battery-high"],
     "Battery_SOH": ["Battery State of Health", "battery_state_of_health", "%", None],
     "Battery_Charging_Voltage": ["Battery Charging Voltage", "battery_charging_voltage", "V", None],
     "Battery_Discharging_Voltage": ["Battery Discharging Voltage", "battery_discharging_voltage", "V", None],
