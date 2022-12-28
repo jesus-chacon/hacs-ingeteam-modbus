@@ -449,11 +449,11 @@ class IngeteamModbusHub:
 
     def complete_battery(self):
         if (self.data["battery_power"] <= 0):
-            self.data["battery_charging_power"] = self.data["battery_power"]
+            self.data["battery_charging_power"] = self.data["battery_power"] * -1
             self.data["battery_discharging_power"] = 0
         else:
             self.data["battery_charging_power"] = 0
-            self.data["battery_discharging_power"] = self.data["battery_power"] * -1
+            self.data["battery_discharging_power"] = self.data["battery_power"]
 
         return True
 
