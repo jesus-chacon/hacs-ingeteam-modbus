@@ -34,7 +34,7 @@ INVERTER_SENSOR_TYPES = {
     "CL_Voltage": ["Critical Loads. Voltage", "cl_voltage", "V", None],
     "CL_Current": ["Critical Loads. Current", "cl_current", "A", "mdi:current-ac"],
     "CL_Freq": ["Critical Loads. Frequency", "cl_freq", "Hz", None],
-    "CL_Active_Power": ["Critical Loads. Active Power", "cl_active_power", "A", None],
+    "CL_Active_Power": ["Critical Loads. Active Power", "cl_active_power", "W", None],
     "CL_Reactive_Power": ["Critical Loads. Reactive Power", "cl_reactive_power", "Var", None],
     "IM_Voltage": ["Internal Meter Voltage", "im_voltage", "V", None],
     "IM_Current": ["Internal Meter Current", "im_current", "A", "mdi:current-ac"],
