@@ -333,7 +333,7 @@ class IngeteamModbusHub:
         return True
 
     def read_modbus_data_meter(self):
-        """start reading meter  data """
+        """start reading meter data """
         meter_data = self.read_input_registers(unit=self._address, address=69, count=4)
         if meter_data.isError():
             return False

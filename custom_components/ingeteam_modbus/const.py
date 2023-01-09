@@ -63,7 +63,7 @@ METER_SENSOR_TYPES = {
     "EM_Voltage": ["External Meter AC Voltage", "em_voltage", "V", "mdi:sine-wave"],
     "EM_Frequency": ["External Meter AC Frequency", "em_freq", "Hz", None],
     "EM_Active_Power": ["External Meter AC Active Power", "em_active_power", "W", None],
-    "EM_Active_Energy": ["External Meter AC Active Energy", "em_active_energy", "Wh", None, "external_meter_ac_active_power"],
+    "EM_Active_Energy": ["External Meter AC Active Energy", "em_active_energy", "Wh", None, "external_meter_em_active_power"],
     "EM_Reactive_Power": ["External Meter AC Reactive Power", "em_reactive_power", "Var", None],
 }
 
