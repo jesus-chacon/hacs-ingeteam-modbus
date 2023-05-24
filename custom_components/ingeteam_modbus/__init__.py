@@ -32,7 +32,7 @@ from .const import (
     BATTERY_BMS_ALARMS,
     BATTERY_LIMITATION_REASONS,
     AP_REDUCTION_REASONS,
-    MODBUS_STATUS
+    MODBUS_STATUS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,7 +42,9 @@ INGETEAM_MODBUS_SCHEMA = vol.Schema(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Required(CONF_HOST): cv.string,
         vol.Required(CONF_PORT): cv.string,
-        vol.Optional(CONF_MODBUS_ADDRESS, default=DEFAULT_MODBUS_ADDRESS): cv.positive_int,
+        vol.Optional(
+            CONF_MODBUS_ADDRESS, default=DEFAULT_MODBUS_ADDRESS
+        ): cv.positive_int,
         vol.Optional(CONF_READ_METER, default=DEFAULT_READ_METER): cv.boolean,
         vol.Optional(CONF_READ_BATTERY, default=DEFAULT_READ_BATTERY): cv.boolean,
         vol.Optional(
@@ -104,6 +106,7 @@ async def async_unload_entry(hass, entry):
 
     hass.data[DOMAIN].pop(entry.data["name"])
     return True
+
 
 class IngeteamModbusHub:
     """Thread safe wrapper class for pymodbus."""
@@ -201,40 +204,38 @@ class IngeteamModbusHub:
             kwargs = {"unit": unit} if unit else {}
             return self._client.read_input_registers(address, count, **kwargs, slave=1)
 
-
     def read_modbus_data(self):
+        status_data = self.read_input_registers(unit=self._address, address=0, count=80)
+
+        if status_data.isError():
+            return False
+        
         try:
             readResult = (
-                self.read_modbus_data_status()
-                and self.read_modbus_data_inverter()
-                and self.read_modbus_data_meter()
-                and self.read_modbus_data_pv_field()
-                and self.read_modbus_data_battery()
+                self.read_modbus_data_status(status_data.registers[9:17])
+                and self.read_modbus_data_battery(status_data.registers[17:31])
+                and self.read_modbus_data_pv_field(status_data.registers[31:37], status_data.registers[79:80])
+                and self.read_modbus_data_inverter(status_data.registers[37:67])
+                and self.read_modbus_data_meter(status_data.registers[69:73])
                 and self.complete_battery()
                 and self.parse_totals()
-            );
+            )
 
             if readResult == False:
-                self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"];
+                self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"]
                 return False
-                
+
         except Exception as e:
             _LOGGER.exception("Error parsing modbus data")
-            self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"];
+            self.data["modbus_status"] = MODBUS_STATUS["OFFLINE"]
 
-            return False;
-        
+            return False
+
         return True
 
-    def read_modbus_data_status(self):
+    def read_modbus_data_status(self, registers):
         try:
-            status_data = self.read_input_registers(unit=self._address, address=9, count=8)
-            if status_data.isError():
-                return False
-
-            decoder = BinaryPayloadDecoder.fromRegisters(
-                status_data.registers, byteorder=Endian.Big
-            )
+            decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big)
 
             stop_code = decoder.decode_16bit_uint()
             alarm_code = decoder.decode_32bit_uint()
@@ -253,24 +254,18 @@ class IngeteamModbusHub:
             self.data["waiting_time"] = waiting_time
 
             if status in INVERTER_STATUS:
-                self.data['status'] = INVERTER_STATUS[status]
+                self.data["status"] = INVERTER_STATUS[status]
             else:
-                self.data['status'] = status
+                self.data["status"] = status
 
             return True
         except Exception as e:
             _LOGGER.exception("Error read modbus data status")
-        
-        return False
-    
-    def read_modbus_data_inverter(self):
-        status_data = self.read_input_registers(unit=self._address, address=37, count=30)
-        if status_data.isError():
-            return False
 
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            status_data.registers, byteorder=Endian.Big
-        )
+        return False
+
+    def read_modbus_data_inverter(self, registers):
+        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big)
 
         active_power = decoder.decode_16bit_int()
         reactive_power = decoder.decode_16bit_int()
@@ -290,8 +285,9 @@ class IngeteamModbusHub:
         im_reactive_power = decoder.decode_16bit_int()
         im_power_factor = decoder.decode_16bit_int()
         dc_bus_voltage = decoder.decode_16bit_uint()
-        decoder.skip_bytes(4)
-        internal_temp = decoder.decode_16bit_int()
+        temp_mod_1 = decoder.decode_16bit_int()
+        temp_mod_2 = decoder.decode_16bit_int()
+        temp_pcb = decoder.decode_16bit_int()
         decoder.skip_bytes(6)
         rms_diff_current = decoder.decode_16bit_uint()
         do_1_status = decoder.decode_16bit_uint()
@@ -306,9 +302,9 @@ class IngeteamModbusHub:
         self.data["ap_reduction_ratio"] = ap_reduction_ratio / 10
         self.data["ap_reduction_reason"] = ap_reduction_reason
         if ap_reduction_reason in AP_REDUCTION_REASONS:
-            self.data['ap_reduction_reason'] = AP_REDUCTION_REASONS[ap_reduction_reason]
+            self.data["ap_reduction_reason"] = AP_REDUCTION_REASONS[ap_reduction_reason]
         else:
-            self.data['ap_reduction_reason'] = ap_reduction_reason
+            self.data["ap_reduction_reason"] = ap_reduction_reason
         self.data["reactive_setpoint_type"] = reactive_setpoint_type
         self.data["cl_voltage"] = cl_voltage
         self.data["cl_current"] = cl_current / 100
@@ -322,9 +318,11 @@ class IngeteamModbusHub:
         self.data["im_reactive_power"] = im_reactive_power
         self.data["im_power_factor"] = im_power_factor / 1000
         self.data["dc_bus_voltage"] = dc_bus_voltage
-        self.data["internal_temp"] = internal_temp / 10
-        self.data["rms_diff_current"] = rms_diff_current
-        self.data["do_1_status"] = BOOLEAN_STATUS[do_1_status] 
+        self.data["temp_mod_1"] = temp_mod_1 / 10
+        self.data["temp_mod_2"] = temp_mod_2 / 10
+        self.data["temp_pcb"] = temp_pcb / 10
+        self.data["rms_diff_current"] = rms_diff_current / 10
+        self.data["do_1_status"] = BOOLEAN_STATUS[do_1_status]
         self.data["do_2_status"] = BOOLEAN_STATUS[do_2_status]
         self.data["di_drm_status"] = BOOLEAN_STATUS[di_drm_status]
         self.data["di_2_status"] = BOOLEAN_STATUS[di_2_status]
@@ -332,16 +330,10 @@ class IngeteamModbusHub:
 
         return True
 
-    def read_modbus_data_meter(self):
-        """start reading meter data """
-        meter_data = self.read_input_registers(unit=self._address, address=69, count=4)
-        if meter_data.isError():
-            return False
+    def read_modbus_data_meter(self, registers):
+        """start reading meter data"""
+        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big)
 
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            meter_data.registers, byteorder=Endian.Big
-        )
-        
         em_voltage = decoder.decode_16bit_uint()
         em_freq = decoder.decode_16bit_uint()
         em_active_power = decoder.decode_16bit_int()
@@ -350,19 +342,15 @@ class IngeteamModbusHub:
         self.data["em_voltage"] = round(em_voltage, abs(em_voltage))
         self.data["em_freq"] = round(em_freq / 10)
         self.data["em_active_power"] = round(em_active_power, abs(em_active_power))
-        self.data["em_reactive_power"] = round(em_reactive_power, abs(em_reactive_power))
+        self.data["em_reactive_power"] = round(
+            em_reactive_power, abs(em_reactive_power)
+        )
 
         return True
 
-
-    def read_modbus_data_pv_field(self):
-        inverter_data = self.read_input_registers(unit=self._address, address=31, count=6)
-        if inverter_data.isError():
-            return False
-
-        decoder = BinaryPayloadDecoder.fromRegisters(
-            inverter_data.registers, byteorder=Endian.Big
-        )
+    def read_modbus_data_pv_field(self, registers, external_pv_data):
+        decoder = BinaryPayloadDecoder.fromRegisters(registers, byteorder=Endian.Big)
+        external_pv_decoder = BinaryPayloadDecoder.fromRegisters(external_pv_data, byteorder=Endian.Big)
 
         pv1_voltage = decoder.decode_16bit_uint()
         pv1_current = decoder.decode_16bit_uint()
@@ -370,24 +358,24 @@ class IngeteamModbusHub:
         pv2_voltage = decoder.decode_16bit_uint()
         pv2_current = decoder.decode_16bit_uint()
         pv2_power = decoder.decode_16bit_uint()
+        external_pv_power = external_pv_decoder.decode_16bit_uint()
 
-        self.data["pv1_voltage"] = pv1_voltage 
+        self.data["pv1_voltage"] = pv1_voltage
         self.data["pv1_current"] = pv1_current / 100
         self.data["pv1_power"] = pv1_power
         self.data["pv2_voltage"] = pv2_voltage
         self.data["pv2_current"] = pv2_current / 100
         self.data["pv2_power"] = pv2_power
-        self.data["pv_power"] = pv1_power + pv2_power;
+        self.data["external_pv_power"] = external_pv_power
+        
+        self.data["pv_internal_total_power"] = pv1_power + pv2_power
+        self.data["pv_power"] = pv1_power + pv2_power + external_pv_power
 
         return True
 
-    def read_modbus_data_battery(self):
-        battery_data = self.read_input_registers(unit=self._address, address=17, count=14)
-        if battery_data.isError():
-            return False
-
+    def read_modbus_data_battery(self, registers):
         decoder = BinaryPayloadDecoder.fromRegisters(
-            battery_data.registers, byteorder=Endian.Big,wordorder=Endian.Little
+            registers, byteorder=Endian.Big, wordorder=Endian.Little
         )
 
         battery_voltage = decoder.decode_16bit_uint()
@@ -405,7 +393,6 @@ class IngeteamModbusHub:
         battery_discharge_limitation_reason = decoder.decode_16bit_uint()
         battery_voltage_internal = decoder.decode_16bit_uint()
 
-
         self.data["battery_voltage"] = battery_voltage / 10
         self.data["battery_current"] = battery_current / 100
         self.data["battery_power"] = battery_power
@@ -414,33 +401,37 @@ class IngeteamModbusHub:
         self.data["battery_charging_voltage"] = battery_charging_voltage / 10
         self.data["battery_discharging_voltage"] = battery_discharging_voltage / 10
         self.data["battery_charging_current_max"] = battery_charging_current_max / 100
-        self.data["battery_discharging_current_max"] = battery_discharging_current_max / 100
+        self.data["battery_discharging_current_max"] = (
+            battery_discharging_current_max / 100
+        )
         self.data["battery_temp"] = battery_temp / 10
         self.data["battery_voltage_internal"] = battery_voltage_internal / 10
-        self.data['battery_status'] = BATTERY_STATUS[battery_status]
-        self.data['battery_bms_alarm'] = BATTERY_BMS_ALARMS[battery_bms_alarm]
-        self.data['battery_discharge_limitation_reason'] = BATTERY_LIMITATION_REASONS[battery_discharge_limitation_reason]
+        self.data["battery_status"] = BATTERY_STATUS[battery_status]
+        self.data["battery_bms_alarm"] = BATTERY_BMS_ALARMS[battery_bms_alarm]
+        self.data["battery_discharge_limitation_reason"] = BATTERY_LIMITATION_REASONS[
+            battery_discharge_limitation_reason
+        ]
 
         # Some attr are bugged in certain statuses
         if battery_status == 7:
-            self.data['battery_voltage'] = 0
-            self.data['battery_current'] = 0
-            self.data['battery_power'] = 0
-            self.data['battery_charging_current_max'] = 0
-            self.data['battery_discharging_current_max'] = 0
-            self.data['battery_bms_alarm'] = "None"
+            self.data["battery_voltage"] = 0
+            self.data["battery_current"] = 0
+            self.data["battery_power"] = 0
+            self.data["battery_charging_current_max"] = 0
+            self.data["battery_discharging_current_max"] = 0
+            self.data["battery_bms_alarm"] = "None"
 
         return True
 
     def parse_totals(self):
         self.data["total_active_power"] = self.data["pv_power"]
 
-        if (self.data["em_active_power"] > 0):
+        if self.data["em_active_power"] > 0:
             self.data["total_active_power"] += self.data["em_active_power"]
             self.data["exported_power"] = 0
-            self.data["imported_power"] = self.data["em_active_power"]
+            self.data["imported_power"] = abs(self.data["em_active_power"])
         else:
-            self.data["exported_power"] = self.data["em_active_power"]
+            self.data["exported_power"] = abs(self.data["em_active_power"])
             self.data["imported_power"] = 0
 
         self.data["modbus_status"] = MODBUS_STATUS["ONLINE"]
@@ -448,12 +439,11 @@ class IngeteamModbusHub:
         return True
 
     def complete_battery(self):
-        if (self.data["battery_power"] <= 0):
-            self.data["battery_charging_power"] = self.data["battery_power"] * -1
+        if self.data["battery_power"] <= 0:
+            self.data["battery_charging_power"] = abs(self.data["battery_power"])
             self.data["battery_discharging_power"] = 0
         else:
             self.data["battery_charging_power"] = 0
             self.data["battery_discharging_power"] = self.data["battery_power"]
 
         return True
-
