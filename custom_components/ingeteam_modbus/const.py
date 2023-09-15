@@ -1,6 +1,6 @@
 DOMAIN = "ingeteam_modbus"
 DEFAULT_NAME = "ingeteam"
-DEFAULT_SCAN_INTERVAL = 10
+DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_PORT = 502
 DEFAULT_MODBUS_ADDRESS = 1
 DEFAULT_READ_METER = False
@@ -87,6 +87,10 @@ PV_FIELD_SENSOR_TYPES = {
     "PV_Internal_Total_Energy": ["PV Internal Total Energy", "pv_internal_total_energy", "Wh", None, "pv_internal_total_power"],
     "PV_Power": ["PV Power", "pv_power", "W", None],
     "PV_Energy": ["PV Energy", "pv_energy", "Wh", None, "pv_power"],
+    "Total_Loads_Power": ["Total Loads Power", "total_loads_power", "W", None],
+    "Total_Loads_Energy": ["Total Loads Energy", "total_loads_energy", "Wh", None, "total_loads_power"],
+    "EV_Power": ["EV Power", "ev_power", "W", None],
+    "EV_Energy": ["EV Energy", "ev_energy", "Wh", None, "ev_power"],
 }
 
 BATTERY_SENSOR_TYPES = {
