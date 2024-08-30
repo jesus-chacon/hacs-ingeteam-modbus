@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, UTC, timedelta
 from typing import Optional, Dict, Any
 from decimal import Decimal
 from .const import (
@@ -10,17 +11,30 @@ from .const import (
     DOMAIN,
     ATTR_MANUFACTURER,
 )
-from homeassistant.const import CONF_NAME, DEVICE_CLASS_ENERGY, ENERGY_KILO_WATT_HOUR, CONF_SCAN_INTERVAL
-from homeassistant.components.sensor import (
-    PLATFORM_SCHEMA,
-    STATE_CLASS_MEASUREMENT,
-    SensorEntity,
+from homeassistant.const import (
+    CONF_NAME,
+    PERCENTAGE,
+    UnitOfTemperature,
 )
-from homeassistant.components.integration.sensor import IntegrationSensor,ATTR_SOURCE_ID,UNIT_PREFIXES,UNIT_TIME
 
+from homeassistant.components.sensor import (
+    SensorEntity,
+    SensorEntityDescription,
+    SensorStateClass,
+    SensorDeviceClass
+)
+from homeassistant.components.integration.sensor import (
+    IntegrationSensor, 
+    ATTR_SOURCE_ID, 
+    UNIT_PREFIXES, 
+    UNIT_TIME,  
+    _IntegrationMethod,
+    _IntegrationTrigger
+)
 
-from homeassistant.core import callback
-from homeassistant.util import dt as dt_util
+from homeassistant.components.integration.const import METHOD_TRAPEZOIDAL
+
+from homeassistant.core import callback, CALLBACK_TYPE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -133,15 +147,66 @@ async def async_setup_entry(hass, entry, async_add_entities):
     async_add_entities(entities)
     return True
 
+_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
+    "A": SensorEntityDescription(
+        key="A",
+        device_class=SensorDeviceClass.CURRENT,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "V": SensorEntityDescription(
+        key="V",
+        device_class=SensorDeviceClass.VOLTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "W": SensorEntityDescription(
+        key="W",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "Var": SensorEntityDescription(
+        key="Var",
+        device_class=SensorDeviceClass.REACTIVE_POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "B": SensorEntityDescription(
+        key="B",
+        device_class=SensorDeviceClass.BATTERY,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    "C": SensorEntityDescription(
+        key="C",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+    ),
+    "Hz": SensorEntityDescription(
+        key="Hz",
+        device_class=SensorDeviceClass.FREQUENCY,
+        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    "%": SensorEntityDescription(
+        key="%",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+}
+
+DIAG_SENSOR = SensorEntityDescription(
+    key="_",
+    state_class=SensorStateClass.MEASUREMENT,
+)
 
 class CalculatedEnergySensor(IntegrationSensor):
     def __init__(
         self,
         *
         hub,
+        integration_method = METHOD_TRAPEZOIDAL,
         name: str | None,
         source_entity: str,
-        unique_id: str | None):
+        unique_id: str | None,
+        max_sub_interval: timedelta | None = None,):
         """Initialize the integration sensor."""
         unit_prefix = "k"
         unit_time = "h"
@@ -150,12 +215,21 @@ class CalculatedEnergySensor(IntegrationSensor):
         self._round_digits = 2
         self._state: Decimal | None = None
         self._last_valid_state = Decimal | None 
-        self._method = "trapezoidal"
+        self._method = _IntegrationMethod.from_name(integration_method)
+        self._max_sub_interval: timedelta | None = (
+            None  # disable time based integration
+            if max_sub_interval is None or max_sub_interval.total_seconds() == 0
+            else max_sub_interval
+        )
+        self._max_sub_interval_exceeded_callback: CALLBACK_TYPE = lambda *args: None
+        self._last_integration_time: datetime = datetime.now(tz=UTC)
+        self._last_integration_trigger = _IntegrationTrigger.StateEvent
 
         self._attr_name = name if name is not None else f"{source_entity} integral"
         self._unit_template = f"{'' if unit_prefix is None else unit_prefix}{{}}"
         self._unit_of_measurement: str | None = None
         self._unit_prefix = UNIT_PREFIXES[unit_prefix]
+        self._unit_prefix_string = unit_prefix
         self._unit_time = UNIT_TIME[unit_time]
         self._unit_time_str = unit_time
         self._attr_icon = "mdi:chart-histogram"
@@ -169,15 +243,7 @@ class CalculatedEnergySensor(IntegrationSensor):
     
     @property
     def device_class(self):
-        """Return the class of the sensor."""
-        if self._unit_of_measurement == "W":
-            return "power"
-        elif self._unit_of_measurement == "A":
-            return "current"
-        elif self._unit_of_measurement == "Wh" or  self._unit_of_measurement == "kWh" or self._unit_of_measurement == "MWh":
-            return "energy"
-        elif self._unit_of_measurement == "V":
-            return "voltage"
+        return SensorDeviceClass.ENERGY
 
 
 class IngeteamSensor(SensorEntity):
@@ -189,10 +255,11 @@ class IngeteamSensor(SensorEntity):
         self._hub = hub
         self._key = key
         self._name = name
-        self._unit_of_measurement = unit
+        self._unit_of_measurement = unit if unit != "B" else "%"
         self._icon = icon
         self._device_info = device_info
-        self._attr_state_class = STATE_CLASS_MEASUREMENT
+        self._attr_state_class = SensorStateClass.MEASUREMENT
+        self.entity_description = _DESCRIPTIONS.get(unit, DIAG_SENSOR)
 
     async def async_added_to_hass(self):
         """Register callbacks."""
@@ -234,18 +301,6 @@ class IngeteamSensor(SensorEntity):
         """Return the state of the sensor."""
         if self._key in self._hub.data:
             return self._hub.data[self._key]
-
-    @property
-    def device_class(self):
-        """Return the class of the sensor."""
-        if self._unit_of_measurement == "W":
-            return "power"
-        elif self._unit_of_measurement == "A":
-            return "current"
-        elif self._unit_of_measurement == "Wh" or  self._unit_of_measurement == "kWh" or self._unit_of_measurement == "MWh":
-            return "energy"
-        elif self._unit_of_measurement == "V":
-            return "voltage"
 
     @property
     def should_poll(self) -> bool:
