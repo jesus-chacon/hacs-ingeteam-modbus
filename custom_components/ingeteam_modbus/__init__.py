@@ -175,7 +175,7 @@ class IngeteamModbusHub:
             _LOGGER.warning("Modbus exception occurred while reading data: %s", e)
             return False
         except Exception:
-            _LOGGER.exception("Unexpected error while reading modbus data")
+            _LOGGER.exception("Unexpected error while reading modbus data", e)
             return False
 
     @property
