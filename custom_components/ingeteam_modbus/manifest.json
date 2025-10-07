@@ -2,8 +2,7 @@
   "domain": "ingeteam_modbus",
   "name": "Ingeteam Modbus",
   "documentation": "https://github.com/jesus-chacon/hacs-ingeteam-modbus",
-  "requirements": ["pymodbus==3.5.1"],
   "codeowners": ["@jesus-chacon"],
   "config_flow": true,
-  "version": "3.0.0"
+  "version": "4.0.0"
 }
